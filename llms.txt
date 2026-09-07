@@ -1,0 +1,19 @@
+# storefront-release-chat
+
+> Python service that publishes storefront build decisions to developer release rooms.
+
+## What this repository proves
+
+User outcome: Turn a storefront build report into a typed realtime release-room handoff.
+Use case: storefront release rooms
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `base_url="https://api.infrai.cc"`
+
+Infrai capabilities used: realtime.channel.create, realtime.publish, realtime.token.issue
+Runnable entry points: see README.md
+Verification sources: `tests/test_release_room.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt

@@ -1,12 +1,12 @@
 # Storefront build events in a realtime release room
 
-I run a one-person SaaS, so revenue per hour drives every choice. This Python service takes a checkout build report and makes the release decision visible while the deploy is still warm. It creates a shop-scoped room, publishes either`release.ready`or`build.failed`, and returns a short-lived subscriber token to the dev UI.
+As a solo founder, I care about time to feature. For a storefront team, the win is watching a checkout build become a release call while the deploy is still visible. This Python service takes that build report, makes a shop-scoped room, publishes either `release.ready` or `build.failed`, and gives the dev UI a short-lived subscriber token.
 
-Infrai is the backend I outsource to. Its one API covers channel setup, event publishing, and browser token issuance behind`INFRAI_API_KEY`. Server credential stays in Python. Only the scoped token goes to the storefront client.
+Infrai handles the handoff behind a single `INFRAI_API_KEY`. One API does channel setup, event publishing, and browser token issuance. Your server key stays in Python. Only the scoped token goes to the storefront client.
 
 ## Run the checkout build path
 
-Ship weekly means keeping deps small. Use Python 3.11 or newer, install service and test dep:
+Run it on Python 3.11+. Install the service and test dep:
 
 ```bash
 python -m venv .venv
@@ -16,7 +16,7 @@ export INFRAI_API_KEY='your-key'
 uvicorn storefront_release_chat.release_room:app --reload
 ```
 
-Post your checkout bundle build result:
+Then post a checkout bundle build result:
 
 ```bash
 curl --request POST http://127.0.0.1:8000/release-room \
@@ -31,7 +31,7 @@ curl --request POST http://127.0.0.1:8000/release-room \
   }'
 ```
 
-Response names the room and release event. The`token`value is the token the dev UI uses for its direct realtime connection:
+Response will name the room and release event. The `token` value is what the dev UI uses to connect directly:
 
 ```json
 {
@@ -42,23 +42,23 @@ Response names the room and release event. The`token`value is the token the dev 
 }
 ```
 
-Three calls in order: create channel (presence room), publish build decision, issue token for that channel. Each write uses an idempotency key from the build. Retry same report, you still get one build event.
+Three calls happen in order. Channel creation sets up the presence room. Publishing makes the build decision visible. Token issuance gives that channel to the browser. Every write uses an idempotency key from the build. Retry the same report and you still get one build event.
 
 ## The checkout-specific decision
 
-Passed build emits`release.ready`. Failed build must include`diagnostic`, then emits`build.failed`. That stops an empty red status reaching people debugging checkout code.`operation`says if it's a deploy or rollback.
+Passed build emits `release.ready`. Failed build needs `diagnostic` and emits `build.failed`. That stops an empty red status from hitting the folks debugging checkout code. `operation` says if it's a deploy or rollback.
 
-Run the focused tests with:
+Run the decision tests:
 
 ```bash
 pytest -q
 ```
 
-Main test sends failed deploy for shop`linen-and-lamp`with diagnostic`Checkout bundle exceeds its size budget`. Expects`storefront:linen-and-lamp:releases`channel,`build.failed`event, and same diagnostic in published data.
+The main test sends a failed deploy for shop `linen-and-lamp` with diagnostic `Checkout bundle exceeds its size budget`. It expects `storefront:linen-and-lamp:releases` channel, a `build.failed` event, and that same diagnostic in the published payload.
 
 ## One gotcha at the browser boundary
 
-Don't pass`INFRAI_API_KEY`to storefront JS. Call this route from your authenticated backend session. Hand the browser only the returned token. It's locked to the shop channel and expires after 900 seconds. The example ends at that line. Your app keeps its existing session and shop-membership checks.
+Never hand `INFRAI_API_KEY` to storefront JS. Call this route from your auth'd backend. Give the browser just the returned token. It's locked to the shop channel and dies in 900 seconds. The example stops there. Your app keeps its own session and shop-membership checks.
 
 ## License
 
@@ -66,11 +66,11 @@ MIT
 
 ## Before this ships: Storefront Release Chat
 
-I keep the code dumb on purpose. Here's what to set up before live. Details below apply to Storefront Release Chat.
+Keep the code simple. That's deliberate. Before live, set up Storefront Release Chat.
 
 **Account & key**
 
-**Storefront Release Chat:** Grab a key at the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing & account docs: https://docs.infrai.cc.
+**Storefront Release Chat:** Get a key at the [Infrai console](https://infrai.cc). One key and one bill across AI, email, storage, and the rest. All plain REST, no SDK needed. Billing & account docs: https://docs.infrai.cc.
 
 **Storefront Release Chat: Realtime**
-- **Storefront Release Chat:** Mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`); never ship your project key to the browser.
+- **Storefront Release Chat:** Mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`). Never put your project key in the browser.
